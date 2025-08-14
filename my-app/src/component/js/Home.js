@@ -1,6 +1,14 @@
+// src/component/js/Home.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
+import { ref, query, orderByChild, limitToLast, onValue, get } from 'firebase/database';
+import { auth, rtdb } from '../firebase';
+
 import '../css/home.css';
+import '../css/Sidebar.css';
+
 import cloud from '../image/cloudy.png';
 import {
   MenuOutlined,
@@ -10,36 +18,46 @@ import {
   DashboardOutlined,
   SettingOutlined
 } from '@ant-design/icons';
-import '../css/Sidebar.css';
+
+import SensorCards from '../js/SenSorCard';
 
 const Home = () => {
   const navigate = useNavigate();
-  const [powerOn, setPowerOn] = useState(true);
-  const [rain, setRain] = useState(true);
-  const [battery, setBattery] = useState(90);
-  const [lux, setLux] = useState(800);
-  const [temp, setTemp] = useState(31);
-  const [humidity, setHumidity] = useState(40);
+  // 🔧 เปลี่ยนให้ตรงกับโหนดใน RTDB
+  const cabinetId = 'CABINET_001';
+
+  // --------- สถานะระบบ/RTDB ----------
+  const [rtdbLoading, setRtdbLoading] = useState(true);
+  const [rtdbError, setRtdbError] = useState(null);
+  const [connected, setConnected] = useState(true);
+  const [lastTs, setLastTs] = useState(null);
+  const [hadHistory, setHadHistory] = useState(false); // เคยมีประวัติข้อมูลไหม
+  const STALE_MS = 2 * 60 * 1000;
+  const isStale = lastTs ? (Date.now() - lastTs) > STALE_MS : false;
+  const hasData = lastTs !== null; // มีค่าล่าสุดใน state (มาจาก get() หรือ onValue())
+
+  // --------- สถานะ UI/เมนู ----------
   const [menuOpen, setMenuOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState('');
+
+  // --------- สถานะเซนเซอร์ ----------
+  const [powerOn] = useState(true);
+  const [battery] = useState(90);
+  const [rain, setRain] = useState(false);
+  const [lux, setLux] = useState(0);
+  const [temp, setTemp] = useState(0);
+  const [humidity, setHumidity] = useState(0);
+
+  // --------- สภาพอากาศ ----------
+  const [weather, setWeather] = useState(null);
+  const API_KEY = '34981978fff745c0af2bfd42f12172e0'; // ใส่ API Key ของคุณ
+  const city = 'Hat Yai';
 
   const handleLogout = () => {
     navigate('/');
   };
 
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBattery(Math.floor(Math.random() * 30) + 70);
-      setLux(Math.floor(Math.random() * 1000) + 200);
-      setTemp(Math.floor(Math.random() * 5) + 29);
-      setHumidity(Math.floor(Math.random() * 20) + 35);
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const [currentTime, setCurrentTime] = useState('');
-
+  // เวลา (แสดงใน header)
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -52,40 +70,140 @@ const Home = () => {
       });
       setCurrentTime(formatted);
     };
-
-    updateTime(); // เรียกทันทีเมื่อโหลด
-    const timer = setInterval(updateTime, 1000); // อัปเดตทุกวินาที
-
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const [weather, setWeather] = useState(null);
-
-  // เปลี่ยนตรงนี้เป็น key ของตัวเอง
-  const API_KEY = '34981978fff745c0af2bfd42f12172e0'; //  ใส่ API Key 
-  const city = 'Hat Yai'; // เปลี่ยนชื่อเมืองตามต้องการ
-
+  // ดึงสภาพอากาศครั้งเดียว
   useEffect(() => {
     const fetchWeather = async () => {
       try {
         const res = await fetch(
           `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${API_KEY}&lang=en`
-          // `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${API_KEY}&lang=th` ภาษาไทย
         );
-        const data = await res.json();
+        const data = await res.json();  
         setWeather({
-          temp: data.main.temp,
-          humidity: data.main.humidity,
-          description: data.weather[0].description,
-          icon: data.weather[0].icon,
+          temp: data?.main?.temp,
+          humidity: data?.main?.humidity,
+          description: data?.weather?.[0]?.description,
+          icon: data?.weather?.[0]?.icon,
         });
       } catch (err) {
         console.error('ไม่สามารถดึงข้อมูลสภาพอากาศได้:', err);
       }
     };
-
     fetchWeather();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ฟังสถานะการเชื่อมต่อ RTDB (.info/connected)
+  useEffect(() => {
+    const cRef = ref(rtdb, '.info/connected');
+    const off = onValue(cRef, (snap) => setConnected(!!snap.val()));
+    return () => off();
   }, []);
+
+  // ---------- ล็อกอิน Email/Password -> prefill ด้วย get() -> แล้วค่อย subscribe RTDB ----------
+  useEffect(() => {
+    // ❗ เปลี่ยนให้เป็นผู้ใช้จริงในโปรเจกต์ของคุณ (หรืออ่านจาก .env/ฟอร์ม)
+    const EMAIL = 'projectiot2568@gmail.com';
+    const PASSWORD = '0611914120h';
+
+    // ล็อกอินด้วย Email/Password
+    signInWithEmailAndPassword(auth, EMAIL, PASSWORD).catch((e) => {
+      console.error('Auth error:', e.code, e.message);
+      setRtdbLoading(false);
+      setRtdbError(
+        (e.code === 'auth/invalid-login-credentials' || e.code === 'auth/invalid-credential')
+          ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือผู้ใช้นี้ไม่ได้อยู่ในโปรเจกต์เดียวกับ config ปัจจุบัน'
+          : `Auth error: ${e?.message || 'unknown'}`
+      );
+    });
+
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+
+      const listRef = ref(rtdb, `sensorsData/${cabinetId}`);
+      const qLatest = query(listRef, orderByChild('timestamp'), limitToLast(1));
+
+      try {
+        // 1) prefill: ดึง “ข้อมูลล่าสุด 1 รายการ” มาก่อน
+        const once = await get(qLatest);
+        if (once.exists()) {
+          const obj = once.val();
+          const last = Array.isArray(obj)
+            ? obj.filter(Boolean).slice(-1)[0]
+            : Object.values(obj).slice(-1)[0];
+
+          if (last && typeof last === 'object') {
+            setTemp(typeof last.temperature === 'number' ? Math.round(last.temperature) : null);
+            setHumidity(typeof last.humidity === 'number' ? Math.round(last.humidity) : null);
+            setLux(typeof last.lightIntensity === 'number' ? Math.round(last.lightIntensity) : null);
+            setRain(typeof last.rainDetected === 'boolean' ? last.rainDetected : null);
+
+            let tsMs = null;
+            if (typeof last.timestamp === 'number') {
+              tsMs = last.timestamp;
+            } else if (last.timestamp) {
+              const parsed = Date.parse(last.timestamp);
+              tsMs = Number.isFinite(parsed) ? parsed : null;
+            }
+            setLastTs(Number.isFinite(tsMs) ? tsMs : null);
+            setHadHistory(true);
+          }
+        } else {
+          // ไม่มีประวัติจริง ๆ
+          setHadHistory(false);
+        }
+      } catch (e) {
+        console.error('Prefill get() error:', e);
+        setRtdbError(e?.message || 'RTDB get error');
+      } finally {
+        // จบขั้น prefill
+        setRtdbLoading(false);
+      }
+
+      // 2) subscribe: ฟัง real-time ต่อ (ไม่ล้างค่าถ้า snapshot ว่าง)
+      const unsubRTDB = onValue(
+        qLatest,
+        (snap) => {
+          if (!snap.exists()) {
+            // ไม่มีรายการใหม่ ณ ตอนนี้ → คงค่าเดิมไว้
+            return;
+          }
+          const obj = snap.val();
+          const last = Array.isArray(obj)
+            ? obj.filter(Boolean).slice(-1)[0]
+            : Object.values(obj).slice(-1)[0];
+
+          if (!last || typeof last !== 'object') return;
+
+          setTemp(typeof last.temperature === 'number' ? Math.round(last.temperature) : null);
+          setHumidity(typeof last.humidity === 'number' ? Math.round(last.humidity) : null);
+          setLux(typeof last.lightIntensity === 'number' ? Math.round(last.lightIntensity) : null);
+          setRain(typeof last.rainDetected === 'boolean' ? last.rainDetected : null);
+
+          let tsMs = null;
+          if (typeof last.timestamp === 'number') {
+            tsMs = last.timestamp;
+          } else if (last.timestamp) {
+            const parsed = Date.parse(last.timestamp);
+            tsMs = Number.isFinite(parsed) ? parsed : null;
+          }
+          setLastTs(Number.isFinite(tsMs) ? tsMs : null);
+          setHadHistory(true);
+          setRtdbError(null);
+        },
+        (err) => {
+          setRtdbError(err?.message || 'RTDB error');
+        }
+      );
+
+      return () => unsubRTDB();
+    });
+
+    return () => unsubAuth();
+  }, [cabinetId]);
 
   return (
     <div className="container">
@@ -93,6 +211,7 @@ const Home = () => {
         <div className="menu" onClick={() => setMenuOpen(true)}>
           <MenuOutlined />
         </div>
+
         {menuOpen && (
           <>
             <div className="side-menu">
@@ -115,10 +234,10 @@ const Home = () => {
                 </button>
               </div>
             </div>
-            {/* คลิกพื้นที่ด้านนอกเพื่อปิด */}
             <div className="menu-overlay" onClick={() => setMenuOpen(false)} />
           </>
         )}
+
         <h1><span className="highlight">HOME</span> AUTODRY</h1>
         <div className="user-info">
           <h1 className="username">USER1</h1>
@@ -126,6 +245,7 @@ const Home = () => {
         </div>
       </header>
 
+      {/* สรุปสภาพอากาศ */}
       <section className="weather-summary">
         {weather ? (
           <div className="weather-card">
@@ -142,11 +262,7 @@ const Home = () => {
                 </div>
               </div>
               <div className="weather-icon">
-                <img
-                  src={cloud}
-                  alt="icon"
-                  style={{ width: '200px' }}
-                />
+                <img src={cloud} alt="icon" style={{ width: '200px' }} />
               </div>
             </div>
             <div className="weather-bottom">
@@ -169,70 +285,38 @@ const Home = () => {
         )}
       </section>
 
+      {/* การ์ดแสดงค่าสถานี */}
+      <SensorCards
+        temp={temp}
+        humidity={humidity}
+        lux={lux}
+        rain={rain}
+        isStale={isStale}
+        hasData={hasData}
+      />
 
-      <section className="controls">
-        <div className="control-box">
-          <p>Order the Clothesline</p>
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={powerOn}
-              onChange={() => setPowerOn(!powerOn)}
-            />
-            <span className="slider"></span>
-          </label>
+      {/* แถบสถานะ RTDB */}
+      {rtdbLoading && <div className="banner info">กำลังโหลดข้อมูลจาก RTDB...</div>}
+
+      {!rtdbLoading && !connected && (
+        <div className="banner warn">ออฟไลน์: ยังไม่เชื่อมต่อ RTDB</div>
+      )}
+
+      {/* ถ้าไม่เคยมีประวัติเลยจริง ๆ (แม้ prefill ก็ว่าง) */}
+      {!rtdbLoading && connected && !hadHistory && !rtdbError && (
+        <div className="banner neutral">ยังไม่เคยมีข้อมูลในตู้ {cabinetId}</div>
+      )}
+
+      {/* ถ้าเคยมีประวัติ และตอนนี้ไม่มีอัปเดตใหม่ → โชว์ค่าเดิม + เตือน stale */}
+      {hasData && isStale && (
+        <div className="banner warn">
+          ข้อมูลเก่ากว่า {STALE_MS / 60000} นาที (timestamp ล่าสุด: {lastTs ? new Date(lastTs).toLocaleString('th-TH') : '-'})
         </div>
+      )}
 
-        <div className="status-box">
-          <p>POWER</p>
-          <div className="status-content">
-            {/* <span className="icon">🔋</span> */}
-            <div className="battery">{battery}%</div>
-          </div>
-        </div>
-
-        <div className="status-box" onClick={() => setRain(!rain)} style={{ cursor: 'pointer' }}>
-          <p>RAIN</p>
-          <div className="status-content">
-            {/* <span className="icon">🌧️</span> */}
-            <div className="rain-status" style={{
-              backgroundColor: rain ? "#654ef7" : "#20c997"
-            }}>
-              {rain ? "Rainning" : "Not a Rain"}
-            </div>
-          </div>
-        </div>
-
-        <div className="status-box">
-          <p>LIGHT</p>
-          <div className="status-content">
-            {/* <span className="icon">☀️</span> */}
-            <div className="light-value">{lux} Lux</div>
-          </div>
-        </div>
-
-        <div className="status-box">
-          <p>TEMPERATURE</p>
-          <div className="status-content">
-            {/* <span className="icon">🌡️</span> */}
-            <div className="temp-value">{temp}°C</div>
-          </div>
-        </div>
-
-        <div className="status-box">
-          <p>HUMIDITY</p>
-          <div className="status-content">
-            {/* <span className="icon">💧</span> */}
-            <div className="humidity-value">{humidity}%</div>
-          </div>
-        </div>
-      </section>
-
-
-      {/* <footer>
-        <div className="nav-icon">🏠</div>
-        <div className="nav-icon">⏱️</div>
-      </footer> */}
+      {rtdbError && (
+        <div className="banner error">เกิดข้อผิดพลาด RTDB: {rtdbError}</div>
+      )}
     </div>
   );
 };
