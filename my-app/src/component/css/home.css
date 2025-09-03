@@ -1,0 +1,374 @@
+/* ------------------- Global ------------------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Arial", sans-serif;
+
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background-color: #eed6a7;
+  color: #111;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ------------------- Header ------------------- */
+header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.menu {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 2rem;
+  margin-top: 1rem;
+  cursor: pointer;
+}
+
+header h1 {
+  font-size: 2rem;
+  margin-top: 1.5rem;
+}
+
+.highlight {
+  font-weight: bold;
+  color: #101070;
+}
+
+.user-info {
+  text-align: center;
+}
+
+.username {
+  color: #2b44ff;
+  font-size: 2rem;
+}
+
+.datetime {
+  font-size: 1rem;
+  color: #444;
+}
+
+/* ------------------- Weather Card ------------------- */
+.weather-summary {
+  margin: 0.75rem 0;
+}
+
+.weather-card {
+  background: linear-gradient(to right, #111, #444);
+  border-radius: 2rem;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  width: 100%;
+}
+
+.weather-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.weather-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+}
+
+.temp-big {
+  font-size: 4rem;
+  font-weight: bold;
+  margin-bottom: 0.3rem;
+  margin-left: 5rem;
+}
+
+.desc {
+  font-size: 2rem;
+  color: #e0e0e0;
+  margin-bottom: 0.3rem;
+  margin-left: 5rem;
+}
+
+.date {
+  font-size: 1.5rem;
+  color: #ccc;
+  margin-left: 5rem;
+}
+
+.weather-icon {
+  flex-shrink: 0;
+  font-size: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.weather-icon img {
+  width: 80px;
+}
+
+/* ------------------- Weather Bottom Stats ------------------- */
+.weather-bottom {
+  display: flex;
+  justify-content: space-between;
+  text-align: center;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.weather-metric {
+  flex: 1;
+}
+
+.weather-metric p {
+  margin-bottom: 0.2rem;
+  color: #aaa;
+}
+
+.weather-metric strong {
+  font-size: 1rem;
+  display: block;
+}
+
+/* ------------------- Controls Container ------------------- */
+.controls {
+  width: 100%;
+  /* margin: 1rem auto 2rem; */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); /* 🔁 Responsive 1–2 กล่องต่อแถว */
+  gap: 1rem;
+  justify-content: center;
+}
+
+
+/* ------------------- กล่องควบคุมและสถานะ ------------------- */
+.control-box,
+.status-box {
+  background-color: #ffffff;
+  border-radius: 1.5rem;
+  width: 100%;
+  min-height: 160px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: bold;
+  transition: transform 0.2s ease;
+}
+
+.control-box:hover,
+.status-box:hover {
+  transform: translateY(-5px);
+}
+
+
+/* ------------------- ชื่อฟีเจอร์ ------------------- */
+.status-box p,
+.control-box p {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+/* ------------------- status-content แนวนอน ------------------- */
+.status-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+}
+/* ------------------- ไอคอน ------------------- */
+.container .icon {
+  font-size: 2.4rem;  /* ใหญ่ขึ้นกว่าเดิม */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* ------------------- ค่าต่าง ๆ ------------------- */
+.battery,
+.rain-status {
+  padding: 8px 14px;
+  font-size: 1.05rem;
+  border-radius: 1.2rem;
+  min-width: 100px;
+  text-align: center;
+}
+
+.battery {
+  background-color: limegreen;
+  color: black;
+}
+
+.rain-status {
+  color: white;
+  font-weight: bold;
+}
+
+/* วงกลมแสดงค่า เช่น Light / Temp / Humidity */
+.light-value,
+.temp-value,
+.humidity-value {
+  width: 90px;
+  height: 90px;
+  background-color: #f3a12d;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* ------------------- ปุ่ม Switch (Command) ------------------- */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  background-color: #ccc;
+  border-radius: 34px;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: 0.4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.4s;
+}
+
+input:checked + .slider {
+  background-color: #654ef7;
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+.side-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 250px;
+  height: 100%;
+  background: linear-gradient(to bottom, #029BE5, #aef0f3);
+  z-index: 999;
+  padding: 2rem 1rem;
+  box-shadow: 3px 0 10px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.3s ease forwards;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.side-title {
+  color: white;
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.menu-list {
+  list-style: none;
+  padding: 0;
+  color: black;
+}
+
+.menu-list li {
+  font-size: 1.2rem;
+  padding: 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid #ccc;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.logout {
+  position: absolute;
+  bottom: 2rem;
+  width: 100%;
+  text-align: center;
+}
+
+.logout-btn {
+  background-color: #ff5c5c;
+  border: none;
+  color: white;
+  padding: 0.6rem 1.5rem;
+  font-size: 1rem;
+  border-radius: 2rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.side-overlay {
+  position: fixed;
+  top: 0;
+  left: 250px;
+  width: calc(100% - 250px);
+  height: 100%;
+  background: rgba(0,0,0,0.3);
+  z-index: 998;
+}
