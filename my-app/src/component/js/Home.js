@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
-import { ref, query, orderByChild, limitToLast, onValue, get } from 'firebase/database';
+import { ref, query, orderByChild, limitToLast, onValue, get, orderByKey } from 'firebase/database';
 import { auth, rtdb } from '../firebase';
 
 import '../css/home.css';
@@ -82,7 +82,7 @@ const Home = () => {
         const res = await fetch(
           `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${API_KEY}&lang=en`
         );
-        const data = await res.json();  
+        const data = await res.json();
         setWeather({
           temp: data?.main?.temp,
           humidity: data?.main?.humidity,
@@ -105,7 +105,6 @@ const Home = () => {
 
   // ---------- ล็อกอิน Email/Password -> prefill ด้วย get() -> แล้วค่อย subscribe RTDB ----------
   useEffect(() => {
-    // ❗ เปลี่ยนให้เป็นผู้ใช้จริงในโปรเจกต์ของคุณ (หรืออ่านจาก .env/ฟอร์ม)
     const EMAIL = 'projectiot2568@gmail.com';
     const PASSWORD = '0611914120h';
 
@@ -136,8 +135,8 @@ const Home = () => {
             : Object.values(obj).slice(-1)[0];
 
           if (last && typeof last === 'object') {
-            setTemp(typeof last.temperature === 'number' ? Math.round(last.temperature) : null);
-            setHumidity(typeof last.humidity === 'number' ? Math.round(last.humidity) : null);
+            setTemp(typeof last.temperature === 'number' ? last.temperature.toFixed(2) : null);
+            setHumidity(typeof last.humidity === 'number' ? last.humidity.toFixed(2) : null);
             setLux(typeof last.lightIntensity === 'number' ? Math.round(last.lightIntensity) : null);
             setRain(typeof last.rainDetected === 'boolean' ? last.rainDetected : null);
 
@@ -178,8 +177,8 @@ const Home = () => {
 
           if (!last || typeof last !== 'object') return;
 
-          setTemp(typeof last.temperature === 'number' ? Math.round(last.temperature) : null);
-          setHumidity(typeof last.humidity === 'number' ? Math.round(last.humidity) : null);
+          setTemp(typeof last.temperature === 'number' ? last.temperature.toFixed(2) : null);
+          setHumidity(typeof last.humidity === 'number' ? last.humidity.toFixed(2) : null);
           setLux(typeof last.lightIntensity === 'number' ? Math.round(last.lightIntensity) : null);
           setRain(typeof last.rainDetected === 'boolean' ? last.rainDetected : null);
 
