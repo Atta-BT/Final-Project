@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
-import { ref, query, orderByChild, limitToLast, onValue, get, orderByKey } from 'firebase/database';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { ref, query, orderByChild, limitToLast, onValue, get, set } from 'firebase/database';
 import { auth, rtdb } from '../firebase';
 
 import '../css/home.css';
@@ -23,7 +23,8 @@ import SensorCards from '../js/SenSorCard';
 
 const Home = () => {
   const navigate = useNavigate();
-  // 🔧 เปลี่ยนให้ตรงกับโหนดใน RTDB
+
+  // 🔧 cabinet id ที่ใช้ใน RTDB
   const cabinetId = 'CABINET_001';
 
   // --------- สถานะระบบ/RTDB ----------
@@ -31,18 +32,16 @@ const Home = () => {
   const [rtdbError, setRtdbError] = useState(null);
   const [connected, setConnected] = useState(true);
   const [lastTs, setLastTs] = useState(null);
-  const [hadHistory, setHadHistory] = useState(false); // เคยมีประวัติข้อมูลไหม
+  const [hadHistory, setHadHistory] = useState(false);
   const STALE_MS = 2 * 60 * 1000;
-  const isStale = lastTs ? (Date.now() - lastTs) > STALE_MS : false;
-  const hasData = lastTs !== null; // มีค่าล่าสุดใน state (มาจาก get() หรือ onValue())
+  const isStale = lastTs ? Date.now() - lastTs > STALE_MS : false;
+  const hasData = lastTs !== null;
 
-  // --------- สถานะ UI/เมนู ----------
+  // --------- UI ----------
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
 
-  // --------- สถานะเซนเซอร์ ----------
-  const [powerOn] = useState(true);
-  const [battery] = useState(90);
+  // --------- ค่าเซนเซอร์ ----------
   const [rain, setRain] = useState(false);
   const [lux, setLux] = useState(0);
   const [temp, setTemp] = useState(0);
@@ -50,14 +49,10 @@ const Home = () => {
 
   // --------- สภาพอากาศ ----------
   const [weather, setWeather] = useState(null);
-  const API_KEY = '34981978fff745c0af2bfd42f12172e0'; // ใส่ API Key ของคุณ
+  const API_KEY = '34981978fff745c0af2bfd42f12172e0';
   const city = 'Hat Yai';
 
-  const handleLogout = () => {
-    navigate('/');
-  };
-
-  // เวลา (แสดงใน header)
+  // เวลา (header)
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -77,7 +72,7 @@ const Home = () => {
 
   // ดึงสภาพอากาศครั้งเดียว
   useEffect(() => {
-    const fetchWeather = async () => {
+    (async () => {
       try {
         const res = await fetch(
           `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${API_KEY}&lang=en`
@@ -92,8 +87,7 @@ const Home = () => {
       } catch (err) {
         console.error('ไม่สามารถดึงข้อมูลสภาพอากาศได้:', err);
       }
-    };
-    fetchWeather();
+    })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ฟังสถานะการเชื่อมต่อ RTDB (.info/connected)
@@ -103,30 +97,20 @@ const Home = () => {
     return () => off();
   }, []);
 
-  // ---------- ล็อกอิน Email/Password -> prefill ด้วย get() -> แล้วค่อย subscribe RTDB ----------
+  // 🔐 ใช้ session ที่มีอยู่แล้ว → อ่าน RTDB (prefill + subscribe)
   useEffect(() => {
-    const EMAIL = 'projectiot2568@gmail.com';
-    const PASSWORD = '0611914120h';
-
-    // ล็อกอินด้วย Email/Password
-    signInWithEmailAndPassword(auth, EMAIL, PASSWORD).catch((e) => {
-      console.error('Auth error:', e.code, e.message);
-      setRtdbLoading(false);
-      setRtdbError(
-        (e.code === 'auth/invalid-login-credentials' || e.code === 'auth/invalid-credential')
-          ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือผู้ใช้นี้ไม่ได้อยู่ในโปรเจกต์เดียวกับ config ปัจจุบัน'
-          : `Auth error: ${e?.message || 'unknown'}`
-      );
-    });
-
-    const unsubAuth = onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        // ยังไม่ได้ล็อกอิน → ส่งกลับหน้า login
+        navigate('/login', { replace: true });
+        return;
+      }
 
       const listRef = ref(rtdb, `sensorsData/${cabinetId}`);
       const qLatest = query(listRef, orderByChild('timestamp'), limitToLast(1));
 
       try {
-        // 1) prefill: ดึง “ข้อมูลล่าสุด 1 รายการ” มาก่อน
+        // 1) prefill รายการล่าสุด
         const once = await get(qLatest);
         if (once.exists()) {
           const obj = once.val();
@@ -135,15 +119,14 @@ const Home = () => {
             : Object.values(obj).slice(-1)[0];
 
           if (last && typeof last === 'object') {
-            setTemp(typeof last.temperature === 'number' ? last.temperature.toFixed(2) : null);
-            setHumidity(typeof last.humidity === 'number' ? last.humidity.toFixed(2) : null);
+            setTemp(typeof last.temperature === 'number' ? Math.round(last.temperature) : null);
+            setHumidity(typeof last.humidity === 'number' ? Math.round(last.humidity) : null);
             setLux(typeof last.lightIntensity === 'number' ? Math.round(last.lightIntensity) : null);
             setRain(typeof last.rainDetected === 'boolean' ? last.rainDetected : null);
 
             let tsMs = null;
-            if (typeof last.timestamp === 'number') {
-              tsMs = last.timestamp;
-            } else if (last.timestamp) {
+            if (typeof last.timestamp === 'number') tsMs = last.timestamp;
+            else if (last.timestamp) {
               const parsed = Date.parse(last.timestamp);
               tsMs = Number.isFinite(parsed) ? parsed : null;
             }
@@ -151,41 +134,34 @@ const Home = () => {
             setHadHistory(true);
           }
         } else {
-          // ไม่มีประวัติจริง ๆ
           setHadHistory(false);
         }
       } catch (e) {
         console.error('Prefill get() error:', e);
         setRtdbError(e?.message || 'RTDB get error');
       } finally {
-        // จบขั้น prefill
         setRtdbLoading(false);
       }
 
-      // 2) subscribe: ฟัง real-time ต่อ (ไม่ล้างค่าถ้า snapshot ว่าง)
+      // 2) subscribe real-time
       const unsubRTDB = onValue(
         qLatest,
         (snap) => {
-          if (!snap.exists()) {
-            // ไม่มีรายการใหม่ ณ ตอนนี้ → คงค่าเดิมไว้
-            return;
-          }
+          if (!snap.exists()) return;
           const obj = snap.val();
           const last = Array.isArray(obj)
             ? obj.filter(Boolean).slice(-1)[0]
             : Object.values(obj).slice(-1)[0];
-
           if (!last || typeof last !== 'object') return;
 
-          setTemp(typeof last.temperature === 'number' ? last.temperature.toFixed(2) : null);
-          setHumidity(typeof last.humidity === 'number' ? last.humidity.toFixed(2) : null);
+          setTemp(typeof last.temperature === 'number' ? Math.round(last.temperature) : null);
+          setHumidity(typeof last.humidity === 'number' ? Math.round(last.humidity) : null);
           setLux(typeof last.lightIntensity === 'number' ? Math.round(last.lightIntensity) : null);
           setRain(typeof last.rainDetected === 'boolean' ? last.rainDetected : null);
 
           let tsMs = null;
-          if (typeof last.timestamp === 'number') {
-            tsMs = last.timestamp;
-          } else if (last.timestamp) {
+          if (typeof last.timestamp === 'number') tsMs = last.timestamp;
+          else if (last.timestamp) {
             const parsed = Date.parse(last.timestamp);
             tsMs = Number.isFinite(parsed) ? parsed : null;
           }
@@ -193,16 +169,35 @@ const Home = () => {
           setHadHistory(true);
           setRtdbError(null);
         },
-        (err) => {
-          setRtdbError(err?.message || 'RTDB error');
-        }
+        (err) => setRtdbError(err?.message || 'RTDB error')
       );
 
+      // ทำความสะอาดเมื่อออกจากหน้า/เปลี่ยนผู้ใช้
       return () => unsubRTDB();
     });
 
-    return () => unsubAuth();
-  }, [cabinetId]);
+    return () => unsubscribeAuth();
+  }, [cabinetId, navigate]);
+
+  // --------- Logout: เขียน history แล้วค่อย signOut ----------
+  const writeHistory = async (status) => {
+    const user = auth.currentUser;
+    if (!user) return;
+    const hid = `HIS_${Date.now()}`;
+    const iso = new Date().toISOString();
+    await set(ref(rtdb, `history/${hid}`), {
+      id: hid,
+      timestamp: iso,
+      userId: user.uid,
+      status
+    });
+  };
+
+  const handleLogout = async () => {
+    try { await writeHistory('Logout'); } catch (e) { console.error(e); }
+    await signOut(auth);
+    navigate('/', { replace: true });
+  };
 
   return (
     <div className="container">
@@ -216,7 +211,7 @@ const Home = () => {
             <div className="side-menu">
               <div>
                 <div className="menu-header">
-                  <h2>USER1</h2>
+                  <h2>USER</h2>
                   <CloseOutlined className="close-icon" onClick={() => setMenuOpen(false)} />
                 </div>
 
@@ -239,7 +234,7 @@ const Home = () => {
 
         <h1><span className="highlight">HOME</span> AUTODRY</h1>
         <div className="user-info">
-          <h1 className="username">USER1</h1>
+          <h1 className="username">USER</h1>
           <h2 className="datetime">{currentTime}</h2>
         </div>
       </header>
@@ -296,26 +291,16 @@ const Home = () => {
 
       {/* แถบสถานะ RTDB */}
       {rtdbLoading && <div className="banner info">กำลังโหลดข้อมูลจาก RTDB...</div>}
-
-      {!rtdbLoading && !connected && (
-        <div className="banner warn">ออฟไลน์: ยังไม่เชื่อมต่อ RTDB</div>
-      )}
-
-      {/* ถ้าไม่เคยมีประวัติเลยจริง ๆ (แม้ prefill ก็ว่าง) */}
+      {!rtdbLoading && !connected && <div className="banner warn">ออฟไลน์: ยังไม่เชื่อมต่อ RTDB</div>}
       {!rtdbLoading && connected && !hadHistory && !rtdbError && (
         <div className="banner neutral">ยังไม่เคยมีข้อมูลในตู้ {cabinetId}</div>
       )}
-
-      {/* ถ้าเคยมีประวัติ และตอนนี้ไม่มีอัปเดตใหม่ → โชว์ค่าเดิม + เตือน stale */}
       {hasData && isStale && (
         <div className="banner warn">
-          ข้อมูลเก่ากว่า {STALE_MS / 60000} นาที (timestamp ล่าสุด: {lastTs ? new Date(lastTs).toLocaleString('th-TH') : '-'})
+          ข้อมูลเก่ากว่า {STALE_MS / 60000} นาที (ล่าสุด: {lastTs ? new Date(lastTs).toLocaleString('th-TH') : '-'})
         </div>
       )}
-
-      {rtdbError && (
-        <div className="banner error">เกิดข้อผิดพลาด RTDB: {rtdbError}</div>
-      )}
+      {rtdbError && <div className="banner error">เกิดข้อผิดพลาด RTDB: {rtdbError}</div>}
     </div>
   );
 };
