@@ -3,7 +3,7 @@ const mysql = require('mysql2');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 
-// bcrypt.hash('151244', 10).then(console.log);
+// bcrypt.hash('0611914120h', 10).then(console.log);
 
 const app = express();
 const PORT = 3001;

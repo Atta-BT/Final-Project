@@ -91,3 +91,20 @@
   opacity: 0.8;
   cursor: pointer;
 }
+
+.toggle-pw {
+  background: none;       
+  border: none;           
+  cursor: pointer;        
+  outline: none;          
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;         
+  font-size: 1.1rem;      
+  color: #333;            
+}
+
+.toggle-pw:hover {
+  color: #007bff;         
+}

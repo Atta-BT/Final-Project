@@ -1,6 +1,10 @@
-import { initializeApp, getApp } from 'firebase/app';
+import { initializeApp } from 'firebase/app';
+import {
+  getAuth,
+  setPersistence,            // ✅ ต้อง import
+  browserLocalPersistence     // ✅ ต้อง import
+} from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
-import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDv-GeF0aXNbuUqmdikBXx6JEFolvCOEl0",
@@ -17,3 +21,5 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const rtdb = getDatabase(app);
 export default app;
+
+setPersistence(auth, browserLocalPersistence).catch(console.error);
