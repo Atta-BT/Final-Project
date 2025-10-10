@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { ref, query, orderByChild, limitToLast, onValue, get, set } from 'firebase/database';
 import { auth, rtdb } from '../firebase';
+import { ClockCircleOutlined } from '@ant-design/icons';
 
 import '../css/home.css';
 import '../css/Sidebar.css';
@@ -16,7 +17,8 @@ import {
   LogoutOutlined,
   FileTextOutlined,
   DashboardOutlined,
-  SettingOutlined
+  SettingOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
 
 import SensorCards from '../js/SenSorCard';
@@ -216,9 +218,13 @@ const Home = () => {
                 </div>
 
                 <ul className="menu-list">
+                  <li onClick={() => navigate('/home')}><HomeOutlined />HOME AUTODRY</li>
                   <li><FileTextOutlined /> HISTORY</li>
                   <li><DashboardOutlined /> DASHBOARD</li>
                   <li><SettingOutlined /> SETTING</li>
+                  <li onClick={() => { setMenuOpen(false); navigate('/time'); }}>
+                  <ClockCircleOutlined /> TIME
+                  </li>
                 </ul>
               </div>
 
