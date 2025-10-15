@@ -1,8 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
-  setPersistence,            // ✅ ต้อง import
-  browserLocalPersistence     // ✅ ต้อง import
+  setPersistence,            
+  browserLocalPersistence     
 } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 

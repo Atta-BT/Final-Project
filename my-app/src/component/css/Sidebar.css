@@ -52,8 +52,13 @@
 .menu-list {
   list-style: none;
   padding: 0;
-  margin-top: 2rem;
+  margin-top: 1rem;        /* เดิม 2rem → ลดให้เมนูขึ้นสูง */
+  flex: 1;                 /* 🔹 ดันเมนูให้ขยายขึ้นด้านบน */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* 🔹 จัดให้รายการอยู่บนสุด */
 }
+
 
 .menu-list li {
   font-size: 1.2rem;
