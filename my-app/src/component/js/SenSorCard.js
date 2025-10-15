@@ -2,13 +2,13 @@ import React from 'react';
 import '../../component/css/SenSorCard.css';
 
 // SensorCards.jsx
-const fmtNum = (v, suffix='') => (v === null || v === undefined) ? '—' : `${v}${suffix}`;
+const fmtNum = (v, suffix = '') => (v === null || v === undefined) ? '—' : `${v}${suffix}`;
 
-const SensorCards = ({ temp, humidity, lux, rain, isStale=false, hasData=false }) => {
+const SensorCards = ({ temp1, humidity1, temp2, humidity2, lux, rain, isStale = false, hasData = false }) => {
   const rainDisplay = (rain === true) ? 'ฝนตก' : (rain === false) ? 'ฝนไม่ตก' : 'Unknown';
   const rainActive = rain === true;
   const rainColor = (rain === null) ? '#e5e7eb' : (rainActive ? '#6366f1' : '#20c997');
-  const rainText = (rain === null) ? '#6b7280' : '#ffffff';
+  const rainText = (rain === null) ? '#6b7280' : '#fff';
 
   const sensorData = [
     {
@@ -19,8 +19,10 @@ const SensorCards = ({ temp, humidity, lux, rain, isStale=false, hasData=false }
       textColor: rainText,
     },
     { id: 'light', title: 'LIGHT', displayValue: fmtNum(lux, ' Lux'), color: '#f59e0b', textColor: '#fff' },
-    { id: 'temperature', title: 'TEMPERATURE', displayValue: fmtNum(temp, ' °C'), color: '#f59e0b', textColor: '#fff' },
-    { id: 'humidity', title: 'HUMIDITY', displayValue: fmtNum(humidity, ' %'), color: '#3b82f6', textColor: '#fff' }
+    { id: 'temperature1', title: 'TEMPERATURE 1', displayValue: fmtNum(temp1, ' °C'), color: '#f97316', textColor: '#fff' },
+    { id: 'humidity1', title: 'HUMIDITY 1', displayValue: fmtNum(humidity1, ' %'), color: '#3b82f6', textColor: '#fff' },
+    { id: 'temperature2', title: 'TEMPERATURE 2', displayValue: fmtNum(temp2, ' °C'), color: '#ef4444', textColor: '#fff' },
+    { id: 'humidity2', title: 'HUMIDITY 2', displayValue: fmtNum(humidity2, ' %'), color: '#2563eb', textColor: '#fff' },
   ];
 
   return (
@@ -43,7 +45,7 @@ const SensorCards = ({ temp, humidity, lux, rain, isStale=false, hasData=false }
             {s.id === 'rain' && (
               <div className="rain-indicators">
                 <span className={`rain-indicator ${rain === true ? 'rain-indicator--active' : ''}`}>ฝนตก</span>
-                <span className={`rain-indicator ${rain === false ? 'rain-indicator--active' : ''}`}>แห้งใส</span>
+                <span className={`rain-indicator ${rain === false ? 'rain-indicator--active' : ''}`}>ฝนไม่ตก</span>
               </div>
             )}
           </div>

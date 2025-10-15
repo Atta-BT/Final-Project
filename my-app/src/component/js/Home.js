@@ -1,14 +1,12 @@
 // src/component/js/Home.js
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { ref, query, orderByChild, limitToLast, onValue, get, set } from 'firebase/database';
 import { auth, rtdb } from '../firebase';
-
+import { ClockCircleOutlined } from '@ant-design/icons';
 import '../css/home.css';
 import '../css/Sidebar.css';
-
 import cloud from '../image/cloudy.png';
 import {
   MenuOutlined,
@@ -16,9 +14,9 @@ import {
   LogoutOutlined,
   FileTextOutlined,
   DashboardOutlined,
-  SettingOutlined
+  SettingOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
-
 import SensorCards from '../js/SenSorCard';
 
 const Home = () => {
@@ -44,8 +42,10 @@ const Home = () => {
   // --------- ค่าเซนเซอร์ ----------
   const [rain, setRain] = useState(false);
   const [lux, setLux] = useState(0);
-  const [temp, setTemp] = useState(0);
-  const [humidity, setHumidity] = useState(0);
+  const [temp1, setTemp1] = useState(0);
+  const [humidity1, setHumidity1] = useState(0);
+  const [temp2, setTemp2] = useState(0);
+  const [humidity2, setHumidity2] = useState(0);
 
   // --------- สภาพอากาศ ----------
   const [weather, setWeather] = useState(null);
@@ -119,8 +119,10 @@ const Home = () => {
             : Object.values(obj).slice(-1)[0];
 
           if (last && typeof last === 'object') {
-            setTemp(typeof last.temperature === 'number' ? Math.round(last.temperature) : null);
-            setHumidity(typeof last.humidity === 'number' ? Math.round(last.humidity) : null);
+            setTemp1(typeof last.temperature1 === 'number' ? Math.round(last.temperature1) : null);
+            setHumidity1(typeof last.humidity1 === 'number' ? Math.round(last.humidity1) : null);
+            setTemp2(typeof last.temperature2 === 'number' ? Math.round(last.temperature2) : null);
+            setHumidity2(typeof last.humidity2 === 'number' ? Math.round(last.humidity2) : null);
             setLux(typeof last.lightIntensity === 'number' ? Math.round(last.lightIntensity) : null);
             setRain(typeof last.rainDetected === 'boolean' ? last.rainDetected : null);
 
@@ -154,8 +156,8 @@ const Home = () => {
             : Object.values(obj).slice(-1)[0];
           if (!last || typeof last !== 'object') return;
 
-          setTemp(typeof last.temperature === 'number' ? Math.round(last.temperature) : null);
-          setHumidity(typeof last.humidity === 'number' ? Math.round(last.humidity) : null);
+          setTemp1(typeof last.temperature1 === 'number' ? Math.round(last.temperature1) : null);
+          setHumidity1(typeof last.humidity1 === 'number' ? Math.round(last.humidity1) : null);
           setLux(typeof last.lightIntensity === 'number' ? Math.round(last.lightIntensity) : null);
           setRain(typeof last.rainDetected === 'boolean' ? last.rainDetected : null);
 
@@ -216,9 +218,13 @@ const Home = () => {
                 </div>
 
                 <ul className="menu-list">
-                  <li><FileTextOutlined /> HISTORY</li>
-                  <li><DashboardOutlined /> DASHBOARD</li>
+                  <li onClick={() => navigate('/home')}><HomeOutlined />HOME AUTODRY</li>
+                  <li onClick={() => navigate('/history')}><FileTextOutlined /> HISTORY</li>
+                  <li  onClick={() => navigate('/dashboard')}><DashboardOutlined /> DASHBOARD</li>
                   <li><SettingOutlined /> SETTING</li>
+                  <li onClick={() => { setMenuOpen(false); navigate('/time'); }}>
+                    <ClockCircleOutlined /> TIME SETTING
+                  </li>
                 </ul>
               </div>
 
@@ -281,8 +287,10 @@ const Home = () => {
 
       {/* การ์ดแสดงค่าสถานี */}
       <SensorCards
-        temp={temp}
-        humidity={humidity}
+        temp1={temp1}
+        humidity1={humidity1}
+        temp2={temp2}
+        humidity2={humidity2}
         lux={lux}
         rain={rain}
         isStale={isStale}
